@@ -89,4 +89,20 @@ class UserSatisfactionAnalytics:
 
         return self.model
 
-   
+    def perform_clustering(self, engagement_score, experience_score, n_clusters=2):
+        """
+        Perform K-Means clustering on engagement and experience scores.
+
+        :param engagement_score: Engagement scores DataFrame.
+        :param experience_score: Experience scores DataFrame.
+        :param n_clusters: Number of clusters.
+        :return: DataFrame with user IDs and their assigned cluster.
+        """
+        cluster_df = self.compute_satisfaction_score(engagement_score, experience_score)
+        features = cluster_df[["Engagement_Score", "Experience_Score"]]
+
+        # Fit K-Means model.
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        cluster_df["Cluster"] = kmeans.fit_predict(features)
+
+        return cluster_df
