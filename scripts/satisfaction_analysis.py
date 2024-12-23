@@ -54,4 +54,13 @@ class UserSatisfactionAnalytics:
         ) / 2
         return merged_df
 
+    def top_satisfied_customer(self, engagement_scores, experience_scores, top_n=10):
+        # Get top N satisfied customers based on satisfaction scores.
+        satisfaction_df = self.compute_satisfaction_score(
+            engagement_scores, experience_scores
+        )
+        return satisfaction_df.sort_values(
+            by="Satisfaction_Score", ascending=False
+        ).head(top_n)[["MSISDN/Number", "Satisfaction_Score"]]
+
     
