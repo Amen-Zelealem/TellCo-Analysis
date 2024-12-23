@@ -63,4 +63,14 @@ class UserSatisfactionAnalytics:
             by="Satisfaction_Score", ascending=False
         ).head(top_n)[["MSISDN/Number", "Satisfaction_Score"]]
 
-    
+    def build_regression_model(self, engagement_df, experience_df, model_type="linear"):
+        # Compute satisfaction scores and prepare data for regression.
+        satisfaction_df = self.compute_satisfaction_score(engagement_df, experience_df)
+        X = satisfaction_df[["Engagement_Score", "Experience_Score"]]
+        y = satisfaction_df["Satisfaction_Score"]
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+
+       
