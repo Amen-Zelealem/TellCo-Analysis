@@ -73,4 +73,20 @@ class UserSatisfactionAnalytics:
             X, y, test_size=0.2, random_state=42
         )
 
-       
+        # Initialize and train the model.
+        model_map = {"ridge": Ridge(), "lasso": Lasso(), "linear": LinearRegression()}
+        self.model = model_map.get(model_type, LinearRegression())
+        self.model.fit(X_train, y_train)
+
+        # Save the model.
+        with open("satisfaction_model.pkl", "wb") as file:
+            pickle.dump(self.model, file)
+
+        # Evaluate the model.
+        y_pred = self.model.predict(X_test)
+        print(f"Mean Squared Error: {mean_squared_error(y_test, y_pred)}")
+        print(f"R-squared: {r2_score(y_test, y_pred)}")
+
+        return self.model
+
+   
