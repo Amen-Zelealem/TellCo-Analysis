@@ -106,3 +106,43 @@ class UserSatisfactionAnalytics:
         cluster_df["Cluster"] = kmeans.fit_predict(features)
 
         return cluster_df
+
+    def export_to_postgresql(self, clustering_data):
+        try:
+            # Connect to PostgreSQL and prepare the table.
+            engine = conn(db_name="telecom_model")
+            connection = engine.raw_connection()
+            cursor = connection.cursor()
+            cursor.execute("DROP TABLE IF EXISTS user_satisfaction_scores")
+            cursor.execute("""
+                CREATE TABLE user_satisfaction_scores (
+                    MSISDN FLOAT,
+                    engagement_score FLOAT,
+                    experience_score FLOAT,
+                    satisfaction_score FLOAT
+                )
+            """)
+
+            # Insert data into the table.
+            insert_query = """
+                INSERT INTO user_satisfaction_scores (MSISDN, engagement_score, experience_score, satisfaction_score)
+                VALUES (%s, %s, %s, %s)
+            """
+            data_to_insert = [
+                (
+                    float(row["MSISDN/Number"]),
+                    float(row["Engagement_Score"]),
+                    float(row["Experience_Score"]),
+                    float(row["Satisfaction_Score"]),
+                )
+                for _, row in clustering_data.iterrows()
+            ]
+            cursor.executemany(insert_query, data_to_insert)
+            connection.commit()
+
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            if connection:
+                cursor.close()
+                connection.close()
