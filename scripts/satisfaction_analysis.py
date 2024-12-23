@@ -46,3 +46,12 @@ class UserSatisfactionAnalytics:
         df[score_column_name] = scores
         return df[["MSISDN/Number", score_column_name]]
 
+    def compute_satisfaction_score(self, engagement_scores, experience_scores):
+        # Merge engagement and experience scores and compute average satisfaction score.
+        merged_df = pd.merge(engagement_scores, experience_scores, on="MSISDN/Number")
+        merged_df["Satisfaction_Score"] = (
+            merged_df["Engagement_Score"] + merged_df["Experience_Score"]
+        ) / 2
+        return merged_df
+
+    
