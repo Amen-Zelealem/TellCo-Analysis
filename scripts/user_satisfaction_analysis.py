@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import Ridge, Lasso, LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.cluster import KMeans
+from sqlalchemy import create_engine
 import psycopg2
 import pickle
 import os
@@ -109,19 +110,30 @@ class UserSatisfactionAnalytics:
 
     def export_to_postgresql(self, clustering_data):
         try:
-            # Connect to PostgreSQL and prepare the table.
-            engine = conn(db_name="telecom_model")
+            # Construct the database URL from environment variables
+            db_name = os.getenv("DB_NAME")
+            user = os.getenv("DB_USER")
+            password = os.getenv("DB_PASSWORD")
+            host = os.getenv("DB_HOST")
+            port = os.getenv("DB_PORT", 5432)  # Default PostgreSQL port is 5432
+
+            # Create the SQLAlchemy engine
+            engine = create_engine(
+                f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
+            )
             connection = engine.raw_connection()
             cursor = connection.cursor()
+
+            # Drop the table if it exists and create a new one
             cursor.execute("DROP TABLE IF EXISTS user_satisfaction_scores")
             cursor.execute("""
-                CREATE TABLE user_satisfaction_scores (
-                    MSISDN FLOAT,
-                    engagement_score FLOAT,
-                    experience_score FLOAT,
-                    satisfaction_score FLOAT
-                )
-            """)
+            CREATE TABLE user_satisfaction_scores (
+                MSISDN FLOAT,
+                engagement_score FLOAT,
+                experience_score FLOAT,
+                satisfaction_score FLOAT
+            )
+        """)
 
             # Insert data into the table.
             insert_query = """

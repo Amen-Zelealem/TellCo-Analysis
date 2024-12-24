@@ -1,16 +1,105 @@
 import pandas as pd
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
+class UserEngagementAnalysis:
+    def __init__(self, data):
+        self.data = data
+        self.metrics = None
+        self.normalized_metrics = None
+        self.kmeans = None
+
+    def aggregate_metrics(self):
+        # Aggregate metrics per customer ID (MSISDN)
+        self.metrics = (
+            self.data.groupby("MSISDN/Number")
+            .agg(
+                {
+                    "Dur. (ms)": "sum",  # Total duration of sessions
+                    "Total DL (Bytes)": "sum",  # Total download traffic
+                    "Total UL (Bytes)": "sum",  # Total upload traffic
+                }
+            )
+            .reset_index()
+        )
+
+        # Rename columns for clarity
+        self.metrics.columns = [
+            "MSISDN/Number",
+            "total_session_duration",
+            "total_download_traffic",
+            "total_upload_traffic",
+        ]
+        self.metrics["sessions_frequency"] = (
+            self.data.groupby("MSISDN/Number")
+            .size()
+            .reset_index(name="session_id")["session_id"]
+        )
+
+    def report_top_customers(self):
+        # Report the top 10 customers per engagement metric
+        top_10_sessions = self.metrics.nlargest(10, "sessions_frequency")
+        top_10_duration = self.metrics.nlargest(10, "total_session_duration")
+        top_10_download = self.metrics.nlargest(10, "total_download_traffic")
+        top_10_upload = self.metrics.nlargest(10, "total_upload_traffic")
+        return top_10_sessions, top_10_duration, top_10_download, top_10_upload
+
+    def normalize_and_cluster(self, n_clusters=3):
+        # Normalize the metrics
+        scaler = StandardScaler()
+        self.normalized_metrics = scaler.fit_transform(
+            self.metrics[
+                [
+                    "sessions_frequency",
+                    "total_session_duration",
+                    "total_download_traffic",
+                    "total_upload_traffic",
+                ]
+            ]
+        )
+
+        # Perform K-means clustering
+        self.kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        self.metrics["cluster"] = self.kmeans.fit_predict(self.normalized_metrics)
+
+    def cluster_summary(self):
+        # Compute min, max, average & total non-normalized metrics for each cluster
+        cluster_summary = (
+            self.metrics.groupby("cluster")
+            .agg(
+                {
+                    "sessions_frequency": ["min", "max", "mean", "sum"],
+                    "total_session_duration": ["min", "max", "mean", "sum"],
+                    "total_download_traffic": ["min", "max", "mean", "sum"],
+                    "total_upload_traffic": ["min", "max", "mean", "sum"],
+                }
+            )
+            .reset_index()
+        )
+        return cluster_summary
+
+    def elbow_method(self):
+        # Determine optimal k using Elbow Method
+        wcss = []
+        for i in range(1, 11):
+            kmeans = KMeans(n_clusters=i, random_state=42)
+            kmeans.fit(self.normalized_metrics)
+            wcss.append(kmeans.inertia_)
+
+        plt.figure(figsize=(8, 5))
+        plt.plot(range(1, 11), wcss, marker="o")
+        plt.title("Elbow Method for Optimal k")
+        plt.xlabel("Number of Clusters")
+        plt.ylabel("WCSS")
+        plt.show()
 
 class ExperienceAnalytics:
     def __init__(self, df):
         self.df = df
 
-    # Aggregate user experience metrics and handle missing values
     def aggregate_user_experience(self):
         # Fill missing values
         self.df["TCP DL Retrans. Vol (Bytes)"] = self.df[
@@ -73,52 +162,6 @@ class ExperienceAnalytics:
 
         return user_agg
 
-    # Compute top, bottom, and most frequent values for a column
-    def get_top_bottom_most_frequent(self, column):
-        df = self.aggregate_user_experience()
-        top_10 = df[column].nlargest(10)  # Largest values
-        bottom_10 = df[column].nsmallest(10)  # Smallest values
-        most_frequent = (
-            df[column].mode().iloc[0] if not df[column].mode().empty else None
-        )  # Most frequent value
-        return top_10, bottom_10, most_frequent
-
-    # Calculate average throughput per handset type
-    def avg_throughput_per_handset(self):
-        throughput_cols = ["Avg Bearer TP DL (kbps)", "Avg Bearer TP UL (kbps)"]
-        self.df["Avg_Throughput"] = self.df[throughput_cols].mean(axis=1)
-        return self.df.groupby("Handset Type")["Avg_Throughput"].mean().reset_index()
-
-    # Calculate average TCP retransmission per handset type
-    def avg_tcp_rtt_per_handset(self):
-        self.df["TCP_Retransmission"] = self.df[
-            ["TCP DL Retrans. Vol (Bytes)", "TCP UL Retrans. Vol (Bytes)"]
-        ].sum(axis=1)
-        return (
-            self.df.groupby("Handset Type")["TCP_Retransmission"].mean().reset_index()
-        )
-
-    # Plot distribution of a specified metric for the top 10 handsets
-    def plot_distribution(self, metric):
-        if metric == "Throughput":
-            avg_metric_per_handset = self.avg_throughput_per_handset()
-        elif metric == "TCP Retransmission":
-            avg_metric_per_handset = self.avg_tcp_rtt_per_handset()
-        else:
-            raise ValueError("Metric must be 'Throughput' or 'TCP Retransmission'")
-
-        top_10_handsets = avg_metric_per_handset.sort_values(
-            by=avg_metric_per_handset.columns[1], ascending=False
-        ).head(10)
-
-        sns.barplot(
-            x="Handset Type", y=avg_metric_per_handset.columns[1], data=top_10_handsets
-        )
-        plt.title(f"Distribution of {metric} for Top 10 Handsets")
-        plt.xticks(rotation=90)
-        plt.show()
-
-    # K-means clustering to segment users into experience groups
     def k_means_clustering(self, features, k=3):
         df = self.aggregate_user_experience()
 
