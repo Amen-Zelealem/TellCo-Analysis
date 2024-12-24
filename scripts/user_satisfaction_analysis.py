@@ -134,7 +134,6 @@ class UserSatisfactionAnalytics:
                 satisfaction_score FLOAT
             )
         """)
-            
 
             # Insert data into the table.
             insert_query = """
